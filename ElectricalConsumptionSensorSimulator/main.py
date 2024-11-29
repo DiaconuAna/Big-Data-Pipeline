@@ -1,7 +1,8 @@
 import math
 import random
 import time
-from cassandra.cluster import Cluster
+import json
+from kafka import KafkaProducer
 
 min_global_active_power = 0.08
 max_global_active_power = 10.7
@@ -17,9 +18,8 @@ min_sub_metering_2 = 0
 max_sub_metering_2 = 78
 min_sub_metering_3 = 0
 max_sub_metering_3 = 20
-
-cluster = Cluster(['127.0.0.1'], port=9042)
-session = cluster.connect("electrical")
+# To generate kafka topic: kafka-topics --create --topic electrical_read --bootstrap-server localhost:9092
+producer = KafkaProducer(bootstrap_servers="localhost:29092", api_version=(7,4,4), value_serializer=lambda v: json.dumps(v).encode())
 
 
 def generate_set(old_global_active_power, old_global_reactive_power, old_voltage, old_global_intensity,
@@ -65,12 +65,7 @@ if __name__ == '__main__':
             sub_metering_3)
 
         t = int(time.time() * 1000)
-
-        session.execute(
-            "INSERT INTO sensor_data (sensor_id, time, global_active_power, global_intensity, global_reactive_power, sub_metering_1, sub_metering_2, sub_metering_3, voltage) VALUES (1, " + str(
-                t) + "," + str(global_active_power) + "," + str(global_intensity) + "," + str(
-                global_reactive_power) + "," + str(sub_metering_1) + "," + str(sub_metering_2) + "," + str(
-                sub_metering_3) + "," + str(voltage) + ");")
+        producer.send('electrical_read', {'time': t, 'global_active_power': global_active_power, 'global_reactive_power': global_reactive_power, 'voltage': voltage, 'global_intensity': global_intensity, 'sub_metering_1': sub_metering_1, 'sub_metering_2': sub_metering_2, 'sub_metering_3': sub_metering_3})
         print(t, global_active_power, global_reactive_power, voltage, global_intensity, sub_metering_1,
               sub_metering_2, sub_metering_3)
         time.sleep(1)
