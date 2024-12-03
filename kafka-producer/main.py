@@ -18,9 +18,14 @@ min_sub_metering_2 = 0
 max_sub_metering_2 = 78
 min_sub_metering_3 = 0
 max_sub_metering_3 = 20
-# To generate kafka topic: kafka-topics --create --topic electrical_read --bootstrap-server localhost:9092
-producer = KafkaProducer(bootstrap_servers="localhost:29092", api_version=(7,4,4), value_serializer=lambda v: json.dumps(v).encode())
 
+# To generate kafka topic: kafka-topics --create --topic electrical_read --bootstrap-server localhost:9092
+
+producer = KafkaProducer(
+    bootstrap_servers="kafka:9092",  # Use the service name 'kafka' defined in docker-compose
+    api_version=(7, 4, 4),
+    value_serializer=lambda v: json.dumps(v).encode()
+)
 
 def generate_set(old_global_active_power, old_global_reactive_power, old_voltage, old_global_intensity,
                  old_sub_metering_1, old_sub_metering_2, old_sub_metering_3):
@@ -65,7 +70,10 @@ if __name__ == '__main__':
             sub_metering_3)
 
         t = int(time.time() * 1000)
-        producer.send('electrical_read', {'time': t, 'global_active_power': global_active_power, 'global_reactive_power': global_reactive_power, 'voltage': voltage, 'global_intensity': global_intensity, 'sub_metering_1': sub_metering_1, 'sub_metering_2': sub_metering_2, 'sub_metering_3': sub_metering_3})
+        producer.send('electrical_read', {'time': t, 'global_active_power': global_active_power,
+                                          'global_reactive_power': global_reactive_power, 'voltage': voltage,
+                                          'global_intensity': global_intensity, 'sub_metering_1': sub_metering_1,
+                                          'sub_metering_2': sub_metering_2, 'sub_metering_3': sub_metering_3})
         print(t, global_active_power, global_reactive_power, voltage, global_intensity, sub_metering_1,
               sub_metering_2, sub_metering_3)
         time.sleep(1)
