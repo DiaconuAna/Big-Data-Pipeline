@@ -87,6 +87,16 @@ services:
       - "4040:4040"
     restart: always
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - net
+    depends_on:
+      - cassandra
+
 #  namenode:
 #    image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
 #    container_name: namenode
