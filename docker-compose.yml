@@ -97,34 +97,81 @@ services:
     depends_on:
       - cassandra
 
-#  namenode:
-#    image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
-#    container_name: namenode
-#    hostname: namenode
-#    volumes:
-#    - ./data/namenode:/hadoop/dfs/name
-#    environment:
-#    - CLUSTER_NAME=test
-#    - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
-#    networks:
-#    - net
-#    ports:
-#    - 9870:9870
-#    - 8020:8020
-#
-#  datanode:
-#    image: bde2020/hadoop-datanode:2.0.0-hadoop3.1.3-java8
-#    container_name: datanode
-#    hostname: datanode
-#    volumes:
-#    - ./data/datanode:/hadoop/dfs/data
-#    environment:
-#    - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
-#    depends_on:
-#      - namenode
-#    networks:
-#     - net
-#    ports:
-#     - 50075:50075
-#     - 50010:50010
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
+    container_name: namenode
+    hostname: namenode
+    volumes:
+    - ./data/namenode:/hadoop/dfs/name
+    environment:
+    - CLUSTER_NAME=test
+    - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    networks:
+    - net
+    ports:
+    - 9870:9870 # HDFS web UI
+    - 8020:8020 # HDFS NameNode Port
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.1.3-java8
+    container_name: datanode
+    hostname: datanode
+    volumes:
+    - ./data/datanode:/hadoop/dfs/data
+    environment:
+    - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    depends_on:
+      - namenode
+    networks:
+     - net
+    ports:
+     - 50075:50075 # Datanode Web UI
+     - 50010:50010 # Datanode data port
+
+
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "7077:7077"
+      - "8080:8080"  # Spark Master UI
+    networks:
+      - net
+    restart: always
+
+  spark-worker:
+    image: bitnami/spark:latest
+    container_name: spark-worker
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_MODE=worker
+    ports:
+      - "8081:8081"  # Spark Worker UI
+    depends_on:
+      - spark-master
+    networks:
+      - net
+
+
+  batch_layer:
+    build:
+      context: ./batch_layer
+    container_name: batch_layer
+    depends_on:
+      - kafka
+      - namenode
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - KAFKA_BROKER=kafka:9092
+      - HDFS_OUTPUT_DIR=hdfs://namenode:8020/electrical_data
+    networks:
+      - net
+    volumes:
+      - ./batch_layer:/opt/spark/data
+    ports:
+      - "4041:4040"  # Spark UI
+    restart: always
 
