@@ -119,7 +119,9 @@ def write_to_hdfs(batch_df, batch_id):
         group_df = spark.createDataFrame(data, columns)
 
         # Write the grouped DataFrame to HDFS
-        group_df.write.mode('overwrite').json(output_file_path)
+        group_df.coalesce(1).write.mode('overwrite').json(output_file_path)
+
+        # group_df.write.mode('overwrite').json(output_file_path)
 
     print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")
 
