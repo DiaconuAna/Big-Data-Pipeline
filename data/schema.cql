@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS sensor_data (
     sub_metering_2 double,
     sub_metering_3 double,
     PRIMARY KEY ((sensor_id), time)
-) WITH CLUSTERING ORDER BY (time DESC);
+) WITH CLUSTERING ORDER BY (time DESC) AND default_time_to_live=300;

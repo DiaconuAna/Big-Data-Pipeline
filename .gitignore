@@ -3,4 +3,4 @@ electrical_data/*
 ./idea
 data/datanode
 data/namenode
-./checkpoint
+checkpoint
