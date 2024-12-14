@@ -22,8 +22,8 @@ df.dropna(inplace=True)
 
 df['timestamp'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Time'].astype(str), dayfirst=True)
 
-for hour, group in df.groupby(df['timestamp'].dt.floor('h')):
-    output_dir_path = f'electrical_data/years={hour.strftime("%Y")}/months={hour.strftime("%m")}/days={hour.strftime("%d")}/hours={hour.strftime("%H")}'
+for hour, group in df.groupby(df['timestamp'].dt.floor('T')):
+    output_dir_path = f'electrical_data/years={hour.strftime("%Y")}/months={hour.strftime("%m")}/days={hour.strftime("%d")}/hours={hour.strftime("%H")}/minutes={hour.strftime("%M")}'
     os.makedirs(output_dir_path, exist_ok=True)
     output_file_path = f'{output_dir_path}/file.json'
     group.drop(columns=['timestamp'], inplace=True)
