@@ -63,11 +63,10 @@ schema = StructType([
 #
 #     print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")  # Print for confirmation
 
+# Function to write to HDFS
 def write_to_hdfs(batch_df, batch_id):
-    # Add additional columns to group by
+    # Add timestamp and additional columns for grouping
     batch_df = batch_df.withColumn("timestamp", from_unixtime(col("timestamp") / 1000).cast("timestamp"))
-
-    # Add year, month, day, and hour columns
     batch_df = batch_df.withColumn("year", date_format("timestamp", "yyyy")) \
         .withColumn("month", date_format("timestamp", "MM")) \
         .withColumn("day", date_format("timestamp", "dd")) \
@@ -76,7 +75,15 @@ def write_to_hdfs(batch_df, batch_id):
 
     # Group by year, month, day, hour, and minute
     grouped_df = batch_df.groupBy("year", "month", "day", "hour", "minute").agg(
-        collect_list("timestamp").alias("values"))
+        collect_list("timestamp").alias("timestamps"),
+        collect_list("global_active_power").alias("global_active_power"),
+        collect_list("global_reactive_power").alias("global_reactive_power"),
+        collect_list("voltage").alias("voltage"),
+        collect_list("global_intensity").alias("global_intensity"),
+        collect_list("sub_metering_1").alias("sub_metering_1"),
+        collect_list("sub_metering_2").alias("sub_metering_2"),
+        collect_list("sub_metering_3").alias("sub_metering_3"),
+    )
 
     # Iterate over the grouped DataFrame and save each group to HDFS
     for row in grouped_df.collect():
@@ -85,9 +92,16 @@ def write_to_hdfs(batch_df, batch_id):
         day = row['day']
         hour = row['hour']
         minute = row['minute']
-        values = row['values']
+        timestamps = row['timestamps']
+        global_active_power = row['global_active_power']
+        global_reactive_power = row['global_reactive_power']
+        voltage = row['voltage']
+        global_intensity = row['global_intensity']
+        sub_metering_1 = row['sub_metering_1']
+        sub_metering_2 = row['sub_metering_2']
+        sub_metering_3 = row['sub_metering_3']
 
-        # Create a structured folder path based on the year, month, day, and hour
+        # Create a structured folder path based on the year, month, day, hour, and minute
         output_dir_path = f'{HDFS_OUTPUT_DIR}/years={year}/months={month}/days={day}/hours={hour}/minutes={minute}'
 
         # Create directories if they don't exist
@@ -96,12 +110,18 @@ def write_to_hdfs(batch_df, batch_id):
         # Define the output file path
         output_file_path = os.path.join(output_dir_path, 'file.json')
 
-        # Write the values to a JSON file using Spark's built-in JSON writer
-        # Convert the values back into a DataFrame for writing to HDFS
-        group_df = spark.createDataFrame([(value,) for value in values], ['timestamp'])  # Adjust column name as needed
+        # Combine the lists of values into a DataFrame and write to HDFS
+        data = list(zip(timestamps, global_active_power, global_reactive_power, voltage, global_intensity,
+                        sub_metering_1, sub_metering_2, sub_metering_3))
+
+        columns = ['timestamp', 'global_active_power', 'global_reactive_power', 'voltage', 'global_intensity',
+                   'sub_metering_1', 'sub_metering_2', 'sub_metering_3']
+        group_df = spark.createDataFrame(data, columns)
+
+        # Write the grouped DataFrame to HDFS
         group_df.write.mode('overwrite').json(output_file_path)
 
-    print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")  # Print for confirmation
+    print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")
 
 
 if __name__ == "__main__":
@@ -116,8 +136,13 @@ if __name__ == "__main__":
         .option("subscribe", KAFKA_TOPIC) \
         .load()
 
+    print(raw_data)
+
     # Parse Kafka data
     json_data = raw_data.select(from_json(col("value").cast("string"), schema).alias("data"))
+
+    print("Parsed data: ", json_data)
+
     parsed_data = json_data.select(
         col("data.time").alias("timestamp"),
         col("data.global_active_power"),
@@ -129,7 +154,10 @@ if __name__ == "__main__":
         col("data.sub_metering_3"),
     )
 
-    print("Parsed data: ", json_data)
+    print('********')
+    print(parsed_data)
+    print('********')
+
     # Write to HDFS
     query = parsed_data.writeStream \
         .foreachBatch(write_to_hdfs) \
