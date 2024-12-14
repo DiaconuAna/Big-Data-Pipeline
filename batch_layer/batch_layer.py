@@ -71,12 +71,12 @@ def write_to_hdfs(batch_df, batch_id):
     batch_df = batch_df.withColumn("year", date_format("timestamp", "yyyy")) \
         .withColumn("month", date_format("timestamp", "MM")) \
         .withColumn("day", date_format("timestamp", "dd")) \
-        .withColumn("hour", date_format("timestamp", "HH"))
+        .withColumn("hour", date_format("timestamp", "HH")) \
+        .withColumn("minute", date_format("timestamp", "mm"))
 
-    # Group by year, month, day, and hour
-    grouped_df = batch_df.groupBy("year", "month", "day", "hour").agg(
-        collect_list("timestamp").alias("values")  # Replace "value_column" with the actual column name you want to group
-    )
+    # Group by year, month, day, hour, and minute
+    grouped_df = batch_df.groupBy("year", "month", "day", "hour", "minute").agg(
+        collect_list("timestamp").alias("values"))
 
     # Iterate over the grouped DataFrame and save each group to HDFS
     for row in grouped_df.collect():
@@ -84,10 +84,11 @@ def write_to_hdfs(batch_df, batch_id):
         month = row['month']
         day = row['day']
         hour = row['hour']
+        minute = row['minute']
         values = row['values']
 
         # Create a structured folder path based on the year, month, day, and hour
-        output_dir_path = f'{HDFS_OUTPUT_DIR}/years={year}/months={month}/days={day}/hours={hour}'
+        output_dir_path = f'{HDFS_OUTPUT_DIR}/years={year}/months={month}/days={day}/hours={hour}/minutes={minute}'
 
         # Create directories if they don't exist
         os.makedirs(output_dir_path, exist_ok=True)
