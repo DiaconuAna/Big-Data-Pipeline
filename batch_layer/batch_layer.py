@@ -5,9 +5,9 @@ import os
 
 KAFKA_BROKER = "kafka:9092"
 KAFKA_TOPIC = "electrical_read"
-HDFS_OUTPUT_DIR = "hdfs://namenode:8020/electrical_data"
+HDFS_OUTPUT_DIR = "hdfs://namenode:8020/electrical_data/"
 
-# Define schema for Kafka data
+# Schema for Kafka data
 schema = StructType([
     StructField("time", LongType(), True),
     StructField("global_active_power", DoubleType(), True),
@@ -19,53 +19,9 @@ schema = StructType([
     StructField("sub_metering_3", DoubleType(), True),
 ])
 
-#
-# def write_to_hdfs(batch_df, batch_id):
-#     # Add structured paths
-#     batch_df = batch_df.withColumn("year", date_format(col("timestamp"), "yyyy")) \
-#         .withColumn("month", date_format(col("timestamp"), "MM")) \
-#         .withColumn("day", date_format(col("timestamp"), "dd")) \
-#         .withColumn("hour", date_format(col("timestamp"), "HH"))
-#
-#     # Write each batch to HDFS in the desired folder structure
-#     batch_df.write.partitionBy("year", "month", "day", "hour") \
-#         .mode("append") \
-#         .json(HDFS_OUTPUT_DIR)
 
-
-# def write_to_hdfs(batch_df, batch_id):
-#     # Add additional columns to group by
-#     batch_df = batch_df.withColumn("timestamp", from_unixtime(col("timestamp") / 1000).cast("timestamp"))
-#
-#     batch_df = batch_df.withColumn("year", date_format("timestamp", "yyyy")) \
-#         .withColumn("month", date_format("timestamp", "MM")) \
-#         .withColumn("day", date_format("timestamp", "dd")) \
-#         .withColumn("hour", date_format("timestamp", "HH"))
-#
-#     # Convert to Pandas for easier grouping and writing, as you wanted a similar approach to pandas
-#     batch_df_pandas = batch_df.toPandas()
-#
-#     for hour, group in batch_df_pandas.groupby(batch_df_pandas['timestamp'].dt.floor('h')):
-#         # Create a structured folder path based on the hour
-#         output_dir_path = f'{HDFS_OUTPUT_DIR}/years={hour.strftime("%Y")}/months={hour.strftime("%m")}/days={hour.strftime("%d")}/hours={hour.strftime("%H")}'
-#
-#         # Create directories if they don't exist
-#         os.makedirs(output_dir_path, exist_ok=True)
-#
-#         # Define the output file path
-#         output_file_path = os.path.join(output_dir_path, 'file.json')
-#
-#         # Drop the 'timestamp' column if necessary
-#         group = group.drop(columns=['timestamp'])
-#
-#         # Write the group to a JSON file
-#         group.to_json(output_file_path, orient='records', lines=True)
-#
-#     print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")  # Print for confirmation
-
-# Function to write to HDFS
 def write_to_hdfs(batch_df, batch_id):
-    # Add timestamp and additional columns for grouping
+    # Add timestamp and partitioning columns
     batch_df = batch_df.withColumn("timestamp", from_unixtime(col("timestamp") / 1000).cast("timestamp"))
     batch_df = batch_df.withColumn("year", date_format("timestamp", "yyyy")) \
         .withColumn("month", date_format("timestamp", "MM")) \
@@ -73,57 +29,76 @@ def write_to_hdfs(batch_df, batch_id):
         .withColumn("hour", date_format("timestamp", "HH")) \
         .withColumn("minute", date_format("timestamp", "mm"))
 
-    # Group by year, month, day, hour, and minute
-    grouped_df = batch_df.groupBy("year", "month", "day", "hour", "minute").agg(
-        collect_list("timestamp").alias("timestamps"),
-        collect_list("global_active_power").alias("global_active_power"),
-        collect_list("global_reactive_power").alias("global_reactive_power"),
-        collect_list("voltage").alias("voltage"),
-        collect_list("global_intensity").alias("global_intensity"),
-        collect_list("sub_metering_1").alias("sub_metering_1"),
-        collect_list("sub_metering_2").alias("sub_metering_2"),
-        collect_list("sub_metering_3").alias("sub_metering_3"),
-    )
+    # Write the data directly to HDFS in Hive-compatible partition structure
+    output_dir_path = f"{HDFS_OUTPUT_DIR}"
 
-    # Iterate over the grouped DataFrame and save each group to HDFS
-    for row in grouped_df.collect():
-        year = row['year']
-        month = row['month']
-        day = row['day']
-        hour = row['hour']
-        minute = row['minute']
-        timestamps = row['timestamps']
-        global_active_power = row['global_active_power']
-        global_reactive_power = row['global_reactive_power']
-        voltage = row['voltage']
-        global_intensity = row['global_intensity']
-        sub_metering_1 = row['sub_metering_1']
-        sub_metering_2 = row['sub_metering_2']
-        sub_metering_3 = row['sub_metering_3']
+    batch_df.write \
+        .mode("append") \
+        .partitionBy("year", "month", "day", "hour", "minute") \
+        .parquet(output_dir_path)
 
-        # Create a structured folder path based on the year, month, day, hour, and minute
-        output_dir_path = f'{HDFS_OUTPUT_DIR}/years={year}/months={month}/days={day}/hours={hour}/minutes={minute}'
-
-        # Create directories if they don't exist
-        os.makedirs(output_dir_path, exist_ok=True)
-
-        # Define the output file path
-        output_file_path = os.path.join(output_dir_path, 'file.json')
-
-        # Combine the lists of values into a DataFrame and write to HDFS
-        data = list(zip(timestamps, global_active_power, global_reactive_power, voltage, global_intensity,
-                        sub_metering_1, sub_metering_2, sub_metering_3))
-
-        columns = ['timestamp', 'global_active_power', 'global_reactive_power', 'voltage', 'global_intensity',
-                   'sub_metering_1', 'sub_metering_2', 'sub_metering_3']
-        group_df = spark.createDataFrame(data, columns)
-
-        # Write the grouped DataFrame to HDFS
-        group_df.coalesce(1).write.mode('overwrite').json(output_file_path)
-
-        # group_df.write.mode('overwrite').json(output_file_path)
-
-    print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")
+    print(f"Batch {batch_id} written successfully to HDFS in Parquet format for Hive integration.")
+#
+# def write_to_hdfs(batch_df, batch_id):
+#     # Add timestamp and additional columns for grouping
+#     batch_df = batch_df.withColumn("timestamp", from_unixtime(col("timestamp") / 1000).cast("timestamp"))
+#     batch_df = batch_df.withColumn("year", date_format("timestamp", "yyyy")) \
+#         .withColumn("month", date_format("timestamp", "MM")) \
+#         .withColumn("day", date_format("timestamp", "dd")) \
+#         .withColumn("hour", date_format("timestamp", "HH")) \
+#         .withColumn("minute", date_format("timestamp", "mm"))
+#
+#     # Group by year, month, day, hour, and minute
+#     grouped_df = batch_df.groupBy("year", "month", "day", "hour", "minute").agg(
+#         collect_list("timestamp").alias("timestamps"),
+#         collect_list("global_active_power").alias("global_active_power"),
+#         collect_list("global_reactive_power").alias("global_reactive_power"),
+#         collect_list("voltage").alias("voltage"),
+#         collect_list("global_intensity").alias("global_intensity"),
+#         collect_list("sub_metering_1").alias("sub_metering_1"),
+#         collect_list("sub_metering_2").alias("sub_metering_2"),
+#         collect_list("sub_metering_3").alias("sub_metering_3"),
+#     )
+#
+#     # Iterate over the grouped DataFrame and save each group to HDFS
+#     for row in grouped_df.collect():
+#         year = row['year']
+#         month = row['month']
+#         day = row['day']
+#         hour = row['hour']
+#         minute = row['minute']
+#         timestamps = row['timestamps']
+#         global_active_power = row['global_active_power']
+#         global_reactive_power = row['global_reactive_power']
+#         voltage = row['voltage']
+#         global_intensity = row['global_intensity']
+#         sub_metering_1 = row['sub_metering_1']
+#         sub_metering_2 = row['sub_metering_2']
+#         sub_metering_3 = row['sub_metering_3']
+#
+#         # Create a structured folder path based on the year, month, day, hour, and minute
+#         output_dir_path = f'{HDFS_OUTPUT_DIR}/years={year}/months={month}/days={day}/hours={hour}/minutes={minute}'
+#
+#         # Create directories if they don't exist
+#         os.makedirs(output_dir_path, exist_ok=True)
+#
+#         # Define the output file path
+#         output_file_path = os.path.join(output_dir_path, 'file.json')
+#
+#         # Combine the lists of values into a DataFrame and write to HDFS
+#         data = list(zip(timestamps, global_active_power, global_reactive_power, voltage, global_intensity,
+#                         sub_metering_1, sub_metering_2, sub_metering_3))
+#
+#         columns = ['timestamp', 'global_active_power', 'global_reactive_power', 'voltage', 'global_intensity',
+#                    'sub_metering_1', 'sub_metering_2', 'sub_metering_3']
+#         group_df = spark.createDataFrame(data, columns)
+#
+#         # Write the grouped DataFrame to HDFS
+#         group_df.coalesce(1).write.mode('overwrite').json(output_file_path)
+#
+#         # group_df.write.mode('overwrite').json(output_file_path)
+#
+#     print(f"Batch {batch_id} written successfully to HDFS with the structured folder paths.")
 
 
 if __name__ == "__main__":

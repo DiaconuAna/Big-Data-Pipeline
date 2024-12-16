@@ -98,7 +98,7 @@ services:
       - cassandra
 
   namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
     container_name: namenode
     hostname: namenode
     volumes:
@@ -109,11 +109,11 @@ services:
     networks:
     - net
     ports:
-    - 9870:9870 # HDFS web UI
+    - 50070:50070 # HDFS web UI
     - 8020:8020 # HDFS NameNode Port
 
   datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.1.3-java8
+    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
     container_name: datanode
     hostname: datanode
     volumes:
@@ -128,6 +128,35 @@ services:
      - 50075:50075 # Datanode Web UI
      - 50010:50010 # Datanode data port
 
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+    networks:
+      - net
+
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+    ports:
+      - "9083:9083"
+    networks:
+      - net
+
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    networks:
+      - net
 
   spark-master:
     image: bitnami/spark:latest
