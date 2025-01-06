@@ -204,3 +204,27 @@ services:
       - "4041:4040"  # Spark UI
     restart: always
 
+
+  zeppelin:
+    image: apache/zeppelin:0.9.0
+    container_name: zeppelin
+    ports:
+      - "8082:8082"
+    environment:
+      - ZEPPELIN_PORT=8082
+      - ZEPPELIN_HIVE_ENABLED=true  # Enable Hive interpreter in Zeppelin
+      - HIVE_METASTORE_URI=thrift://hive-metastore:9083  # Connect to Hive metastore
+    volumes:
+      - zeppelin-notebooks:/zeppelin-notebooks
+      - zeppelin-logs:/zeppelin-logs
+      - ./zeppelin-site.xml:/opt/zeppelin/conf/zeppelin-site.xml
+    networks:
+      - net
+    restart: always
+    depends_on:
+      - hive-server
+      - hive-metastore
+
+volumes:
+  zeppelin-notebooks:
+  zeppelin-logs:
