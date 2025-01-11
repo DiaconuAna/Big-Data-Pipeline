@@ -12,15 +12,16 @@ def connect_to_hive():
         print(f"Error connecting to Hive: {e}")
         return None
 
-# Step 2: Query Data for Global Active Power > 8.0
-def fetch_high_power_data(conn):
+# Step 2: Query Data for Power Factor Calculation
+def fetch_power_factor_data(conn):
     query = """
-        SELECT 
-            `timestamp`, 
-            `global_active_power` 
+        SELECT
+            `timestamp`,
+            `global_active_power`,
+            `global_reactive_power`,
+            (global_active_power / SQRT(POW(global_active_power, 2) + POW(global_reactive_power, 2))) AS power_factor
         FROM electrical_read_1
-        WHERE global_active_power > 8.0
-          AND day >= 10
+        WHERE year = '2025' AND month = '01' AND day = '10'
         ORDER BY `timestamp`
     """
 
@@ -34,17 +35,17 @@ def fetch_high_power_data(conn):
         return pd.DataFrame()
 
 # Step 3: Visualize the Data
-def plot_high_power(df):
+def plot_power_factor(df):
     if df.empty:
         print("No data available to plot.")
         return
 
-    # Plot global active power over time
+    # Plot power factor over time
     plt.figure(figsize=(12, 6))
-    plt.plot(df['timestamp'], df['global_active_power'], marker='o', label='Global Active Power')
-    plt.title('Global Active Power > 8.0 Over Time')
+    plt.plot(df['timestamp'], df['power_factor'], marker='o', label='Power Factor')
+    plt.title('Power Factor Over Time (2025-01-10)')
     plt.xlabel('Timestamp')
-    plt.ylabel('Global Active Power (kW)')
+    plt.ylabel('Power Factor')
     plt.xticks(rotation=45)
     plt.grid(True)
     plt.legend()
@@ -57,10 +58,10 @@ if __name__ == '__main__':
     conn = connect_to_hive()
     if conn:
         # Step 2: Fetch Data
-        data = fetch_high_power_data(conn)
+        data = fetch_power_factor_data(conn)
 
         # Step 3: Visualize Data
-        plot_high_power(data)
+        plot_power_factor(data)
 
         # Close the connection
         conn.close()
