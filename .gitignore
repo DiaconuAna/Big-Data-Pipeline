@@ -1,5 +1,5 @@
 kafka-producer/household_power_consumption.csv
-electrical_data/*
+batch_layer/electrical_data/*
 ./idea
 data/datanode
 data/namenode
