@@ -96,6 +96,9 @@ services:
       - net
     depends_on:
       - cassandra
+      - trino
+    environment:
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=trino-datasource
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
@@ -157,6 +160,18 @@ services:
     image: bde2020/hive-metastore-postgresql:2.3.0
     networks:
       - net
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    networks:
+      - net
+    ports:
+      - "8085:8085"  # Trino Web UI and API
+    volumes:
+      - ./trino/etc/catalog:/etc/trino/catalog  # Mount configuration files
+    depends_on:
+      - hive-metastore  # Ensure Hive Metastore starts first
 
   spark-master:
     image: bitnami/spark:latest
