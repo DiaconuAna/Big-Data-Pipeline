@@ -31,7 +31,7 @@ def fetch_data(conn):
         # Construct the query
         query = f"""
             SELECT `timestamp`, `voltage`
-            FROM electrical_read_1
+            FROM electrical_read_2
             WHERE `timestamp` >= '{start_time.strftime('%Y-%m-%d %H:%M:%S')}'
               AND `timestamp` < '{end_time.strftime('%Y-%m-%d %H:%M:%S')}'
         """

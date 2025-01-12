@@ -46,7 +46,7 @@ def fetch_high_power_data(conn, start_time, end_time, min_power):
         SELECT 
             `timestamp`, 
             `global_active_power` 
-        FROM electrical_read_1
+        FROM electrical_read_2
         WHERE global_active_power > {min_power}
           AND `timestamp` >= '{start_time.strftime('%Y-%m-%d %H:%M:%S')}'
           AND `timestamp` < '{end_time.strftime('%Y-%m-%d %H:%M:%S')}'
