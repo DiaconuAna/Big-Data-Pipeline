@@ -26,7 +26,6 @@ for hour, group in df.groupby(df['timestamp'].dt.floor('T')):
     output_dir_path = f'electrical_data/year={hour.strftime("%Y")}/month={hour.strftime("%m")}/day={hour.strftime("%d")}/hour={hour.strftime("%H")}/minute={hour.strftime("%M")}'
     os.makedirs(output_dir_path, exist_ok=True)
     output_file_path = f'{output_dir_path}/file.parquet'
-
-    group.to_parquet(output_file_path, engine='pyarrow', index=False)
+    group.to_parquet(output_file_path, engine='pyarrow', index=False, use_deprecated_int96_timestamps=True)
 
     print(f'Generated Parquet file for hour {hour}: {output_file_path}')
