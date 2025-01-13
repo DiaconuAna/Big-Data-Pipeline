@@ -7,6 +7,20 @@ networks:
 
 services:
 
+  ml-container:
+    build:
+      context: ./prediction  # Directory where the Dockerfile and Python script are located
+    container_name: ml-container
+    depends_on:
+      - namenode        # For HDFS access
+      - hive-server     # For querying Hive
+    networks:
+      - net
+    volumes:
+      - ./prediction:/app              # Mount the directory with the Python script and model
+    restart: unless-stopped
+
+
   zookeeper:
       image: confluentinc/cp-zookeeper:5.1.0
       hostname: zookeeper
@@ -40,7 +54,7 @@ services:
       container_name: kafka-sensor
       networks:
         - net
-      restart: always
+      restart: unless-stopped
 
   producer:
     build:
@@ -85,7 +99,7 @@ services:
       - ./checkpoint:/tmp/spark/checkpoint
     ports:
       - "4040:4040"
-    restart: always
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:latest
@@ -183,7 +197,7 @@ services:
       - "8080:8080"  # Spark Master UI
     networks:
       - net
-    restart: always
+    restart: unless-stopped
 
   spark-worker:
     image: bitnami/spark:latest
@@ -217,5 +231,5 @@ services:
       - ./batch_layer:/opt/spark/data
     ports:
       - "4041:4040"  # Spark UI
-    restart: always
+    restart: unless-stopped
 
