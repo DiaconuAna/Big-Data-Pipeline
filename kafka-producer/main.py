@@ -22,7 +22,7 @@ max_sub_metering_3 = 20
 # To generate kafka topic: kafka-topics --create --topic electrical_read --bootstrap-server localhost:9092
 
 producer = KafkaProducer(
-    bootstrap_servers="kafka:9092",  # Use the service name 'kafka' defined in docker-compose
+    bootstrap_servers="kafka:9092",
     api_version=(7, 4, 4),
     value_serializer=lambda v: json.dumps(v).encode()
 )

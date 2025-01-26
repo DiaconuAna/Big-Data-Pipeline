@@ -5,21 +5,16 @@ from cassandra.auth import PlainTextAuthProvider
 from datetime import datetime
 import time
 import numpy as np
-import random
 
-
-# Hive connection configuration
 HIVE_HOST = 'host.docker.internal'
 HIVE_PORT = 10000
 HIVE_DATABASE = 'default'
 
-# Cassandra connection configuration
 CASSANDRA_HOST = '172.22.0.6'
 CASSANDRA_USERNAME = 'cassandra'
 CASSANDRA_PASSWORD = 'cassandra'
 CASSANDRA_KEYSPACE = 'electrical'
 
-# Model configuration
 MODEL_PATH = "lstm_config.h5"
 
 
@@ -81,7 +76,6 @@ def get_last_rows(conn):
     return data[::-1]  # Reverse the order of rows to maintain their natural order
 
 
-
 def prepare_data_for_prediction(data):
     """
     Prepares input data for the LSTM model.
@@ -98,11 +92,9 @@ def prepare_data_for_prediction(data):
 
 def main():
     """Main function to handle the data flow and predictions."""
-    # Establish connections
     conn = connect_to_hive()
     session = connect_to_cassandra()
 
-    # Load the trained model
     model = load_model(MODEL_PATH)
     print(f"Model loaded from {MODEL_PATH}")
 
@@ -112,23 +104,19 @@ def main():
     # Prediction loop
     while True:
         try:
-            # Fetch and prepare data
             rows = get_last_rows(conn)
             X = prepare_data_for_prediction(rows)
             print("Prepared input data:", X)
 
-            # Predict and randomize outputs
             raw_output = model.predict(X)
             predicted_output = relu(raw_output)
             print(f"Predicted output: {predicted_output}")
 
-            # Write predictions to Cassandra
             write_prediction_to_cassandra(session, sensor_id=1, predictions=predicted_output, timestamp=time.time())
 
         except Exception as e:
             print(f"An error occurred: {e}")
 
-        # Wait before next iteration
         time.sleep(60)
 
 

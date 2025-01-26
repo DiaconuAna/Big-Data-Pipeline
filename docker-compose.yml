@@ -9,17 +9,16 @@ services:
 
   ml-container:
     build:
-      context: ./prediction  # Directory where the Dockerfile and Python script are located
+      context: ./prediction
     container_name: ml-container
     depends_on:
-      - namenode        # For HDFS access
-      - hive-server     # For querying Hive
+      - namenode
+      - hive-server
     networks:
       - net
     volumes:
-      - ./prediction:/app              # Mount the directory with the Python script and model
+      - ./prediction:/app
     restart: unless-stopped
-
 
   zookeeper:
       image: confluentinc/cp-zookeeper:5.1.0
@@ -76,8 +75,8 @@ services:
     ports:
       - "9042:9042"
     environment:
-      CASSANDRA_USERNAME: cassandra  # Explicitly set username for clarity
-      CASSANDRA_PASSWORD: cassandra  # Default password, ensure it matches in consumer config
+      CASSANDRA_USERNAME: cassandra
+      CASSANDRA_PASSWORD: cassandra
       MAX_HEAP_SIZE: 256M
       HEAP_NEWSIZE: 128M
     container_name: cassandra-iot
@@ -93,7 +92,7 @@ services:
       - kafka
       - cassandra
     environment:
-      - SPARK_MASTER=spark://kafka:7077   # You can set this to local if needed
+      - SPARK_MASTER=spark://kafka:7077
     volumes:
       - ./spark-consumer:/opt/spark-data
       - ./checkpoint:/tmp/spark/checkpoint
@@ -126,8 +125,8 @@ services:
     networks:
     - net
     ports:
-    - 50070:50070 # HDFS web UI
-    - 8020:8020 # HDFS NameNode Port
+    - 50070:50070
+    - 8020:8020
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
@@ -142,9 +141,8 @@ services:
     networks:
      - net
     ports:
-     - 50075:50075 # Datanode Web UI
-     - 50010:50010 # Datanode data port
-
+     - 50075:50075
+     - 50010:50010
 
   hive-server:
     image: bde2020/hive:2.3.2-postgresql-metastore
@@ -181,11 +179,12 @@ services:
     networks:
       - net
     ports:
-      - "8085:8085"  # Trino Web UI and API
+      - "8085:8085"
     volumes:
-      - ./trino/etc/catalog:/etc/trino/catalog  # Mount configuration files
+      - ./trino/etc/catalog:/etc/trino/catalog
     depends_on:
-      - hive-metastore  # Ensure Hive Metastore starts first
+      - hive-metastore
+    restart: unless-stopped
 
   spark-master:
     image: bitnami/spark:latest
@@ -194,7 +193,7 @@ services:
       - SPARK_MODE=master
     ports:
       - "7077:7077"
-      - "8080:8080"  # Spark Master UI
+      - "8080:8080"
     networks:
       - net
     restart: unless-stopped
@@ -206,12 +205,11 @@ services:
       - SPARK_MASTER=spark://spark-master:7077
       - SPARK_MODE=worker
     ports:
-      - "8081:8081"  # Spark Worker UI
+      - "8081:8081"
     depends_on:
       - spark-master
     networks:
       - net
-
 
   batch_layer:
     build:
@@ -230,6 +228,5 @@ services:
     volumes:
       - ./batch_layer:/opt/spark/data
     ports:
-      - "4041:4040"  # Spark UI
+      - "4041:4040"
     restart: unless-stopped
-

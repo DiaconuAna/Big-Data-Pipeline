@@ -1,13 +1,11 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, date_format, from_unixtime, collect_list, window, avg, sum
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType
-import os
 
 KAFKA_BROKER = "kafka:9092"
 KAFKA_TOPIC = "electrical_read"
 HDFS_OUTPUT_DIR = "hdfs://namenode:8020/electrical_data/"
 
-# Schema for Kafka data
 schema = StructType([
     StructField("time", LongType(), True),
     StructField("global_active_power", DoubleType(), True),
@@ -67,12 +65,8 @@ if __name__ == "__main__":
         .option("subscribe", KAFKA_TOPIC) \
         .load()
 
-    print(raw_data)
-
     # Parse Kafka data
     json_data = raw_data.select(from_json(col("value").cast("string"), schema).alias("data"))
-
-    print("Parsed data: ", json_data)
 
     parsed_data = json_data.select(
         col("data.time").alias("timestamp"),
@@ -84,10 +78,6 @@ if __name__ == "__main__":
         col("data.sub_metering_2"),
         col("data.sub_metering_3"),
     )
-
-    print('********')
-    print(parsed_data)
-    print('********')
 
     # Write to HDFS
     query = parsed_data.writeStream \

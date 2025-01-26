@@ -2,7 +2,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, lit, avg, window, max, min, sum, from_unixtime, unix_timestamp
 from pyspark.sql.types import StructType, StructField, DoubleType, LongType, StringType, TimestampType
 
-# Initialize Spark session
 spark = SparkSession.builder \
     .appName("KafkaConsumer") \
     .config("spark.cassandra.connection.host", "cassandra") \
@@ -11,11 +10,9 @@ spark = SparkSession.builder \
     .config("spark.cassandra.auth.password", "cassandra") \
     .getOrCreate()
 
-# Kafka server and topic
 kafka_bootstrap_servers = "kafka:9092"
 topic = "electrical_read"
 
-# Schema for the JSON message based on the producer
 schema = StructType([
     StructField("time", LongType(), True),
     StructField("global_active_power", DoubleType(), True),
@@ -27,14 +24,12 @@ schema = StructType([
     StructField("sub_metering_3", DoubleType(), True)
 ])
 
-# Read data from Kafka topic
 kafka_df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
     .option("subscribe", topic) \
     .load()
 
-# Parse the Kafka 'value' (which is the JSON message) into a structured format
 parsed_df = kafka_df.select(
     from_json(col("value").cast("string"), schema).alias("data")
 ).select("data.*")
@@ -45,7 +40,6 @@ parsed_df_with_timestamp = parsed_df_with_id.withColumn(
     from_unixtime(col('time') / 1000).cast(TimestampType())  # Convert to seconds and cast to Timestamp
 )
 
-# Apply watermark on the 'timestamp' column
 parsed_df_with_watermark = parsed_df_with_timestamp.withWatermark("timestamp", "1 minute")
 
 # Real-time aggregation for speed layer
@@ -65,8 +59,6 @@ aggregated_df = parsed_df_with_watermark.groupBy(
     sum("sub_metering_3").alias("total_sub_metering_3")
 )
 
-
-# Extract start and end times for clarity
 final_aggregated_df = aggregated_df.select(
     col("sensor_id"),
     col("window.start").alias("start_time").cast("timestamp"),
@@ -82,16 +74,6 @@ final_aggregated_df = aggregated_df.select(
     col("total_sub_metering_2"),
     col("total_sub_metering_3")
 )
-
-print('****************')
-final_aggregated_df.printSchema()
-print('****************')
-
-# Write the results to the console for testing
-# query = parsed_df.writeStream \
-#     .outputMode("append") \
-#     .format("console") \
-#     .start()
 
 # Write aggregated results to Cassandra
 final_query = final_aggregated_df.writeStream \
@@ -110,6 +92,5 @@ query = parsed_df_with_id.writeStream \
     .outputMode("append") \
     .start()
 
-# Await termination
 query.awaitTermination()
 final_query.awaitTermination()
